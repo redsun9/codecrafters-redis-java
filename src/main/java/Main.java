@@ -22,9 +22,17 @@ public class Main {
             clientSocket = serverSocket.accept();
             inputStream = clientSocket.getInputStream();
             outputStream = clientSocket.getOutputStream();
-//            byte[] inputBytes = inputStream.readAllBytes();
-            byte[] outputBytes = "+PONG\r\n".getBytes();
-            outputStream.write(outputBytes);
+            int available;
+            while (true) {
+                available = inputStream.available();
+                if (available > 0) {
+                    byte[] inputBytes = new byte[available];
+                    int read = 0;
+                    while (read < available) read += inputStream.read(inputBytes, read, available - read);
+                    byte[] outputBytes = "+PONG\r\n".getBytes();
+                    outputStream.write(outputBytes);
+                }
+            }
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
         } finally {
