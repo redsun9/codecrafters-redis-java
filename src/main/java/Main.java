@@ -1,4 +1,6 @@
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 
@@ -10,12 +12,19 @@ public class Main {
         //  Uncomment this block to pass the first stage
         ServerSocket serverSocket = null;
         Socket clientSocket = null;
+        InputStream inputStream = null;
+        OutputStream outputStream = null;
         int port = 6379;
         try {
             serverSocket = new ServerSocket(port);
             serverSocket.setReuseAddress(true);
             // Wait for connection from client.
             clientSocket = serverSocket.accept();
+            inputStream = clientSocket.getInputStream();
+            outputStream = clientSocket.getOutputStream();
+//            byte[] inputBytes = inputStream.readAllBytes();
+            byte[] outputBytes = "+PONG\r\n".getBytes();
+            outputStream.write(outputBytes);
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
         } finally {
