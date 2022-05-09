@@ -8,6 +8,6 @@ public abstract class RedisData {
     abstract public Object getRawValue();
 
     public String toString() {
-        return getType() + "[" + getFormattedValue() + "]";
+        return (getType() + "[" + getFormattedValue() + "]").replaceAll("\\r\\n", " ");
     }
 }

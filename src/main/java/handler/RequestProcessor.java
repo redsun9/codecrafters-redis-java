@@ -6,8 +6,7 @@ import types.*;
 @SuppressWarnings("DuplicatedCode")
 public class RequestProcessor {
     public static RedisData processRequest(RedisData data) {
-        String command = getCommand(data);
-
+        String command = getString(data);
         switch (command.toUpperCase()) {
             case "PING":
                 return processPing(data);
@@ -47,29 +46,30 @@ public class RequestProcessor {
     }
 
     private static RedisData processSet(RedisData data) {
-        if (data.getType() == RedisDataType.ARRAY && ((RedisArray) data).getRawValue().length == 3) {
-            RedisData keyData = ((RedisArray) data).getRawValue()[1];
-            RedisData valueData = ((RedisArray) data).getRawValue()[2];
-            String key = null;
-            String value = null;
-            if (keyData.getType() == RedisDataType.SIMPLE_STRING) key = ((RedisSimpleString) keyData).getRawValue();
-            else if (keyData.getType() == RedisDataType.BULK_STRING) key = ((RedisBulkString) keyData).getRawValue();
-            if (key == null) return new RedisError("wrong number of arguments for command");
+        if (data.getType() == RedisDataType.ARRAY && ((RedisArray) data).getRawValue().length >= 3) {
+            RedisData[] rawValue = ((RedisArray) data).getRawValue();
+            String key = getString(rawValue[1]);
+            String value = getString(rawValue[2]);
+            if (key == null || value == null) return new RedisError("wrong number of arguments for command");
 
-            if (valueData.getType() == RedisDataType.SIMPLE_STRING)
-                value = ((RedisSimpleString) valueData).getRawValue();
-            else if (valueData.getType() == RedisDataType.BULK_STRING)
-                value = ((RedisBulkString) valueData).getRawValue();
-            if (value == null) return new RedisError("wrong number of arguments for command");
+            Long expire = null;
+            if (rawValue.length >= 5) {
+                String option = getString(rawValue[3]);
+                if (option == null) return new RedisError("wrong number of arguments for command");
+                if (option.equalsIgnoreCase("PX")) {
+                    expire = getLong(rawValue[4]);
+                    if (expire == null) return new RedisError("wrong number of arguments for command");
+                }
+            }
 
-            String previousValue = InMemoryStorage.put(key, value);
+            String previousValue = InMemoryStorage.put(key, value, expire);
             if (previousValue == null) return new RedisSimpleString("OK");
             else return new RedisBulkString(previousValue);
         }
         return new RedisError("wrong number of arguments for command");
     }
 
-    private static String getCommand(RedisData data) {
+    private static String getString(RedisData data) {
         if (data == null) return null;
         if (data.getType() == RedisDataType.ARRAY) {
             RedisArray array = (RedisArray) data;
@@ -84,6 +84,29 @@ public class RequestProcessor {
             return ((RedisBulkString) data).getRawValue();
         } else if (data.getType() == RedisDataType.SIMPLE_STRING) {
             return ((RedisSimpleString) data).getRawValue();
+        }
+        return null;
+    }
+
+    private static Long getLong(RedisData data) {
+        if (data == null) return null;
+        if (data.getType() == RedisDataType.ARRAY) {
+            RedisArray array = (RedisArray) data;
+            RedisData[] values = array.getRawValue();
+            if (values.length == 0) return null;
+            if (values[0].getType() == RedisDataType.BULK_STRING) {
+                return Long.parseLong(((RedisBulkString) values[0]).getRawValue());
+            } else if (values[0].getType() == RedisDataType.SIMPLE_STRING) {
+                return Long.parseLong(((RedisSimpleString) values[0]).getRawValue());
+            } else if (values[0].getType() == RedisDataType.INTEGER) {
+                return ((RedisInteger) values[0]).getRawValue();
+            }
+        } else if (data.getType() == RedisDataType.BULK_STRING) {
+            return Long.parseLong(((RedisBulkString) data).getRawValue());
+        } else if (data.getType() == RedisDataType.SIMPLE_STRING) {
+            return Long.parseLong(((RedisSimpleString) data).getRawValue());
+        } else if (data.getType() == RedisDataType.INTEGER) {
+            return ((RedisInteger) data).getRawValue();
         }
         return null;
     }
